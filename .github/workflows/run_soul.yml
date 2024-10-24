@@ -1,0 +1,41 @@
+name: Run m.py Continuously
+
+on:
+  workflow_dispatch: # Allow manual triggering of the workflow
+  schedule:
+    - cron: '0 */5 * * *' # Run every 5 hours to avoid 6-hour runtime limit
+
+jobs:
+  run-bgmi:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyTelegramBotAPI requests pymongo certifi aiohttp flask
+
+    - name: Make Scripts Executable
+      run: chmod +x *
+
+    - name: Run m.py
+      run: |
+        nohup python m.py & # Run m.py in the background
+        sleep 295m # Sleep for 295 minutes (just under 5 hours)
+        pkill -f m.py # Stop m.py to avoid the 6-hour limit
+
+    - name: Re-trigger Workflow
+      if: success()
+      run: |
+        echo "Re-triggering the workflow to avoid 6-hour limit."
+        gh workflow run run_bgmi.yml # GitHub CLI command to re-trigger the workflow
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
